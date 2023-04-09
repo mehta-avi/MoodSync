@@ -4,9 +4,12 @@ from deepface import DeepFace
 from PyQt5 import QtWidgets, QtGui
 from PIL import Image, ImageQt
 import numpy as np
-import sys
+import sys, random
 from PyQt5.QtWidgets import (QWidget, QPushButton, QApplication, QGridLayout, QVBoxLayout)
 from PyQt5.QtCore import QThread, QObject, pyqtSignal
+from PyQt5.QtChart import QChart, QChartView, QValueAxis, QBarCategoryAxis, QBarSet, QBarSeries
+from PyQt5.Qt import Qt
+from PyQt5.QtGui import QPainter
 
 total={
     'angry': 0,
@@ -149,6 +152,35 @@ class Gui(QWidget):
         self.textDataLayout.addWidget(self.primaryEmotWidget)
         self.hapDiffWidget = QtWidgets.QLabel("")
         self.textDataLayout.addWidget(self.hapDiffWidget)
+
+
+        set0 = QBarSet('Song Avg')
+        set1 = QBarSet('Total Avg')
+
+        set0.append([random.randint(0, 10) for i in range(6)])
+        set1.append([random.randint(0, 10) for i in range(6)])
+
+        series = QBarSeries()
+        series.append(set0)
+        series.append(set1)
+
+        chart = QChart()
+        chart.addSeries(series)
+        chart.setTitle('Emotion Confidence Values')
+        emotions = ('angry','disgust','fear','happy','sad','surprise','neutral')
+        axisX = QBarCategoryAxis()
+        axisX.append(emotions)
+        axisY = QValueAxis()
+        # axisY.setRange(0, 15)
+        chart.addAxis(axisX, Qt.AlignBottom)
+        chart.addAxis(axisY, Qt.AlignLeft)
+        chart.legend().setVisible(True)
+        chart.legend().setAlignment(Qt.AlignBottom)
+        chartView = QChartView(chart)
+        # self.setCentralWidget(chartView)
+        self.textDataLayout.addWidget(chartView)
+
+
         self.textDataDisplays = QWidget()
         self.textDataDisplays.setLayout(self.textDataLayout)
         self.layout.addWidget(self.textDataDisplays, 1, 0)
