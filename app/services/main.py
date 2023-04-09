@@ -5,7 +5,7 @@ from PyQt5 import QtWidgets, QtGui
 from PIL import Image, ImageQt
 import numpy as np
 import sys
-from PyQt5.QtWidgets import (QWidget, QPushButton, QApplication, QGridLayout)
+from PyQt5.QtWidgets import (QWidget, QPushButton, QApplication, QGridLayout, QVBoxLayout)
 from PyQt5.QtCore import QThread, QObject, pyqtSignal
 
 total={
@@ -31,7 +31,7 @@ num_songs = 0
 
 class Worker(QObject):
     finished = pyqtSignal()  # give worker class a finished signal
-    imgvalsig = pyqtSignal(np.ndarray)
+    imgvalsig = pyqtSignal(np.ndarray, str, float, int)
     def __init__(self, parent=None):
         QObject.__init__(self, parent=parent)
         self.continue_run = True
@@ -50,6 +50,10 @@ class Worker(QObject):
         
         for elem in total_avg.keys():
             total_avg[elem] = total[elem] / num_songs
+
+    def calc_diff(self, s_total_avg):
+        return total_avg['happy'] - s_total_avg['happy']
+
     def do_work(self):
         print("RUNNING")
         song_total={
@@ -92,7 +96,6 @@ class Worker(QObject):
             cv2.destroyAllWindows()
             # read image
             img=frame
-            self.imgvalsig.emit(img)  # emit the finished signal when the loop is done
             # storing the result
             result = DeepFace.analyze(img,actions=['emotion'])
 
@@ -102,6 +105,10 @@ class Worker(QObject):
                 song_total[emot] += result[0]['emotion'][emot]
                 song_avg[emot] = song_total[emot]/song_frame_num
 
+            hapDifferential = self.calc_diff(song_avg)
+            self.imgvalsig.emit(img, result[0]['dominant_emotion'], hapDifferential, song_frame_num)  # emit the finished signal when the loop is done
+            if song_frame_num > 5 and hapDifferential < -0.1:
+                print("Change song")
             print(song_avg)
             print(song_total)
     def stop(self):
@@ -133,9 +140,18 @@ class Gui(QWidget):
         # convert data to QImage using PIL
         img = Image.fromarray(table, mode='RGB')
         qt_img = ImageQt.ImageQt(img)
+
+        self.textDataLayout = QVBoxLayout()
         self.imgWidget = QtWidgets.QLabel()
         self.imgWidget.setPixmap(QtGui.QPixmap.fromImage(qt_img))
-        self.layout.addWidget(self.imgWidget, 1, 0)
+        self.textDataLayout.addWidget(self.imgWidget)
+        self.primaryEmotWidget = QtWidgets.QLabel("")
+        self.textDataLayout.addWidget(self.primaryEmotWidget)
+        self.hapDiffWidget = QtWidgets.QLabel("")
+        self.textDataLayout.addWidget(self.hapDiffWidget)
+        self.textDataDisplays = QWidget()
+        self.textDataDisplays.setLayout(self.textDataLayout)
+        self.layout.addWidget(self.textDataDisplays, 1, 0)
         # Thread:
         self.thread = QThread()
         self.worker = Worker()
@@ -155,11 +171,13 @@ class Gui(QWidget):
         self.btn_stop.clicked.connect(self.stop_thread)
 
         self.show()
-    def updateImgVal(self, data):
+    def updateImgVal(self, data, primaryEmot, hapDiff, frNum):
         print("Emit running")
         img = Image.fromarray(data, mode='RGB')
         qt_img = ImageQt.ImageQt(img)
         self.imgWidget.setPixmap(QtGui.QPixmap.fromImage(qt_img))
+        self.primaryEmotWidget.setText(f"Primary emotion: {primaryEmot}")
+        self.hapDiffWidget.setText(f"Frame: {frNum} Happiness differential: {hapDiff}")
     def on_data_ready(self, data):
         print(data)
 
