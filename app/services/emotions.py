@@ -1,6 +1,7 @@
+#!/bin/python3
 # import the required modules
 import cv2
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from deepface import DeepFace
 
 total={
@@ -88,7 +89,7 @@ def main():
         img=frame
 
         # call imshow() using plt object
-        plt.imshow(img[:,:,::-1])
+        # plt.imshow(img[:,:,::-1])
 
         # display that image
         # plt.show()
