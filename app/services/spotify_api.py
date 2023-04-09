@@ -1,62 +1,36 @@
 import spotipy
-from spotipy.oauth2 import SpotifyOAuth
+from spotipy.oauth2 import SpotifyOAuth, SpotifyClientCredentials
 import secrets
 
 
 class SpotifyAPI:
     def __init__(self, client_id, client_secret, redirect_uri):
-        # Initialize SpotifyOAuth with client ID, client secret, and redirect URI
         self.sp_oauth = SpotifyOAuth(client_id=client_id, client_secret=client_secret, redirect_uri=redirect_uri, scope='user-library-read,user-read-playback-state,user-modify-playback-state')
         self.sp = spotipy.Spotify(auth_manager=self.sp_oauth)
 
     def search_and_play(self, track_name):
-        # Search for a song by name
         results = self.sp.search(q=track_name, type='track', limit=1)
-        
-        # Extract the track ID from the search results
+            
         if len(results['tracks']['items']) > 0:
             track_id = results['tracks']['items'][0]['id']
             print(f"Playing track '{track_name}' with ID: {track_id}")
-            
-            # Play the track
-            self.play_music(track_id)
+                
+            # Get the list of available devices
+            devices = self.sp.devices()
+            if devices['devices']:
+                # Extract the id of the first available device
+                device_id = devices['devices'][0]['id']
+                
+                # Reactivate the player on the target device
+                self.sp.transfer_playback(device_id)
+                
+                # Call the "/me/player/play" endpoint to play the track on the target device
+                self.sp.start_playback(uris=['spotify:track:' + track_id])
+            else:
+                print("No active devices found.")
         else:
             print("No track found with the given name.")
-    
-    def get_currently_playing_track(self):
-        # Get the currently playing track's information
-        currently_playing = self.sp.current_playback()
-        return currently_playing
 
-    def search_and_play_similar_song(self):
-        # Get the currently playing track's information
-        currently_playing = self.get_currently_playing_track()
-                
-        # Extract the track ID from the currently playing track's information
-        if currently_playing is not None:
-            track_id = currently_playing['item']['id']
-            print(currently_playing['item']['genres'])
-
-            # Get the track's properties (e.g., artist, album, genre)
-            artist = currently_playing['item']['artists'][0]['name']
-            album = currently_playing['item']['album']['name']
-            genre = currently_playing['item']['genres'][0] if 'genres' in currently_playing['item'] else None
-            
-            # Search for similar songs based on the track's properties
-            results = self.sp.search(q=f'genre:"{genre}"', type='track', limit=10)
-
-            # print(results)
-            # Extract the track ID from the search results
-            if len(results['tracks']['items']) > 0:
-                track_id = results['tracks']['items'][0]['id']
-                print(f"Playing similar track with ID: {track_id}")
-                
-                # Play the similar track
-                self.play_music(track_id)
-            else:
-                print("No similar track found.")
-        else:
-            print("No track is currently playing.")
 
     def play_music(self, track_id):
         self.sp.start_playback()
@@ -71,3 +45,18 @@ class SpotifyAPI:
     def skip_to_previous_song(self):
         # Skip to the previous song in the current playback
         self.sp.previous_track()
+
+    def refresh_token(self):
+        # Refresh the access token
+        if self.sp_oauth.client_credentials_manager:
+            self.sp_oauth.client_credentials_manager.get_access_token()
+        else:
+            token_info = self.sp_oauth.get_cached_token()
+            if token_info and self.sp_oauth.is_token_expired(token_info):
+                try:
+                    token_info = self.sp_oauth.refresh_access_token(token_info['refresh_token'])
+                    self.sp_oauth.token_info = token_info
+                    self.sp = spotipy.Spotify(auth_manager=self.sp_oauth)
+                except spotipy.oauth2.SpotifyOauthError as e:
+                    print(f"Error occurred while refreshing access token: {e}")
+                    print("Make sure you have provided correct client ID, client secret, redirect URI, and refresh token.")
