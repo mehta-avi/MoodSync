@@ -42,7 +42,7 @@
             display: block;
             margin: 0 auto;
             width: 300px;
-            height: 200px;
+            height: 300px;
             object-fit: cover;
             border-radius: 4px;
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
@@ -51,6 +51,35 @@
             margin-top: 10px;
             font-size: 16px;
             color: #555555;
+        }
+        #domemot_display {
+            font-size: 2em;
+        }
+        .frameresults {
+            display: flex;
+            gap: 1em;
+        }
+        .chart {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            width: 560;
+            height: 300px;
+            border: 1px solid black;
+        }
+        .bar {
+            width: 90%;
+            background-color: red;
+            margin: 10px;
+            transition: height 0.5s ease-in-out;
+        }
+        .barholder {
+            width: 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            height: 100%;
         }
     </style>
 </head>
@@ -62,6 +91,20 @@
             <button class="btn" onclick="playMusic()">Play</button>
             <button class="btn" onclick="pauseMusic()">Pause</button>
             <button class="btn" onclick="skipMusic()">Skip</button>
+            <!-- <button class="btn" onclick="grabFrame()">Frame</button> -->
+        </div>
+        <div id="domemot_display"></div>
+        <div class="frameresults">
+            <canvas id="frame_canvas"></canvas>
+            <div class="chart">
+                <div class="barholder"><div class="bar" id="bar1"></div><div>Angry</div></div>
+                <div class="barholder"><div class="bar" id="bar2"></div><div>Disgust</div></div>
+                <div class="barholder"><div class="bar" id="bar3"></div><div>Fear</div></div>
+                <div class="barholder"><div class="bar" id="bar4"></div><div>Happy</div></div>
+                <div class="barholder"><div class="bar" id="bar5"></div><div>Neutral</div></div>
+                <div class="barholder"><div class="bar" id="bar6"></div><div>Sad</div></div>
+                <div class="barholder"><div class="bar" id="bar7"></div><div>Surprise</div></div>
+            </div>
         </div>
         <div class="box">
             <h2>Currently Playing:</h2>
@@ -74,15 +117,62 @@
         const videoElement = document.getElementById('camera');
         const currentSongElement = document.getElementById('currentSong');
 
+        // seed chart with data
+        const data = [1,1,1,1,1,1,1];
+        const maxval = Math.max(...data);
+        const bars = document.querySelectorAll(".bar");
+        for (let i = 0; i < bars.length; i++) {
+            bars[i].style.height = `${90*(data[i]/maxval)}%`;
+        }
+
         // Function to start video stream from user's camera
         function startCamera() {
             navigator.mediaDevices.getUserMedia({ video: true })
                 .then(stream => {
                     videoElement.srcObject = stream;
+                    setInterval(grabFrame, 2500);
                 })
                 .catch(error => {
                     console.error('Failed to start camera:', error);
                 });
+        }
+        
+        function grabFrame() {
+            var canvas = document.getElementById("frame_canvas"); //createElement("canvas");
+            canvas.width = videoElement.videoWidth;
+            canvas.height = videoElement.videoHeight;
+            var canvasContext = canvas.getContext("2d");
+            canvasContext.drawImage(videoElement, 0, 0);
+            const frameData = canvas.toDataURL('image/png');
+
+            const formData = new FormData();
+            formData.append("frameData", frameData);
+
+            fetch("/eval_frame", {
+                method: "POST",
+                body: formData,
+                headers: new Headers({'content-type': 'application/json'}),
+                mode: 'no-cors'
+            })
+            .then(response => {
+                console.log("Frame sent for eval");
+                response.json().then(function(result) {
+                    const domemot_display = document.getElementById("domemot_display");
+                    domemot_display.innerHTML = "Dominant emotion: " + result.dominant_emotion;
+
+                    // Update bar chart:
+                    const data = [result['emotions']['angry'], result['emotions']['disgust'], result['emotions']['fear'], result['emotions']['happy'], result['emotions']['neutral'], result['emotions']['sad'], result['emotions']['surprise']];
+                    const maxval = Math.max(...data);
+                    const bars = document.querySelectorAll(".bar");
+                    for (let i = 0; i < bars.length; i++) {
+                        bars[i].style.height = `${90*(data[i]/maxval)}%`;
+                    }
+                });
+            })
+            .catch(error => {
+                console.error("Frame upload error: ", error);
+            });
+
         }
 
         // Function to stop video stream from user's camera

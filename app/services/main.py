@@ -131,7 +131,7 @@ class Gui(QWidget):
         self.btn_stop.resize(self.btn_stop.sizeHint())
         self.btn_stop.move(150, 50)
         # General setup
-        self.setGeometry(300, 300, 300, 220)
+        # self.setGeometry(300, 300, 300, 220)
         self.setWindowTitle('ThreadTest')
         self.layout = QGridLayout()
         self.layout.addWidget(self.btn_start, 0, 0)
@@ -140,6 +140,13 @@ class Gui(QWidget):
 
         # generate data
         table = np.zeros((256,256,3), dtype=np.uint8)
+        # for x in table:
+        #     for y in x:
+        #         y = (255,255,255)
+        # for i in range(256):
+        #     table[:,i,0] = i
+        #     table[i,:,1] = i
+        # table[:,:,2] = (2*255 - table[:,:,0] - table[:,:,1]) // 2
         # convert data to QImage using PIL
         img = Image.fromarray(table, mode='RGB')
         qt_img = ImageQt.ImageQt(img)
@@ -157,8 +164,8 @@ class Gui(QWidget):
         set0 = QBarSet('Song Avg')
         set1 = QBarSet('Total Avg')
 
-        set0.append([random.randint(0, 10) for i in range(6)])
-        set1.append([random.randint(0, 10) for i in range(6)])
+        set0.append([random.randint(0, 10) for i in range(7)])
+        set1.append([random.randint(0, 10) for i in range(7)])
 
         series = QBarSeries()
         series.append(set0)
